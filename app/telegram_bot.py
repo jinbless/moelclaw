@@ -1,6 +1,6 @@
 import calendar as cal
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from telegram import Update
 from telegram.ext import (
@@ -246,7 +246,7 @@ async def _get_month_summary(chat_id: int, fn_name: str, args: dict) -> str | No
             time_str = start["dateTime"][11:16]
         else:
             dt_str = start.get("date", "")
-            time_str = "종일"
+            time_str = _format_allday_label(event)
 
         if dt_str != current_date:
             current_date = dt_str
@@ -320,6 +320,29 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # ── Formatters ────────────────────────────────────────────────────
 
+def _format_allday_label(event: dict) -> str:
+    """Return '종일' for single-day or '02-27~03-10 종일' for multi-day."""
+    start = event.get("start", {})
+    end = event.get("end", {})
+    start_date = start.get("date", "")
+    end_date = end.get("date", "")
+
+    if not start_date or not end_date:
+        return "종일"
+
+    try:
+        s = datetime.strptime(start_date, "%Y-%m-%d")
+        e = datetime.strptime(end_date, "%Y-%m-%d")
+        # end.date is exclusive in Google Calendar API
+        if (e - s).days > 1:
+            actual_end = (e - timedelta(days=1)).strftime("%m-%d")
+            return f"{start_date[5:]}~{actual_end} 종일"
+    except ValueError:
+        pass
+
+    return "종일"
+
+
 def format_today_events(events: list[dict]) -> str:
     if not events:
         return "📭 오늘은 예정된 일정이 없습니다."
@@ -331,7 +354,7 @@ def format_today_events(events: list[dict]) -> str:
         if "dateTime" in start:
             time_str = start["dateTime"][11:16]
         else:
-            time_str = "종일"
+            time_str = _format_allday_label(event)
         lines.append(f"{i}. 🕐 {time_str} - {summary}")
 
     return "\n".join(lines)
@@ -352,7 +375,7 @@ def format_week_events(events: list[dict]) -> str:
             time_str = start["dateTime"][11:16]
         else:
             dt_str = start.get("date", "")
-            time_str = "종일"
+            time_str = _format_allday_label(event)
 
         if dt_str != current_date:
             current_date = dt_str
@@ -391,7 +414,8 @@ def format_search_results(events: list[dict], keyword: str | None = None) -> str
             lines.append(f"{i}. 📅 {date_str} 🕐 {time_str} - {summary}")
         else:
             date_str = start.get("date", "")
-            lines.append(f"{i}. 📅 {date_str} 종일 - {summary}")
+            allday = _format_allday_label(event)
+            lines.append(f"{i}. 📅 {date_str} {allday} - {summary}")
 
     return "\n".join(lines)
 
