@@ -12,7 +12,7 @@ _client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # ── Chat History ─────────────────────────────────────────────────
 
-MAX_HISTORY = 50  # max messages per chat (FIFO)
+MAX_HISTORY = 100  # max messages per chat (FIFO)
 _chat_histories: dict[int, list[dict]] = {}
 
 
@@ -298,3 +298,28 @@ async def process_message(user_message: str, chat_id: int) -> dict:
     except Exception:
         logger.exception("Unexpected error in process_message")
         return {"type": "error", "content": "메시지 처리 중 오류가 발생했습니다."}
+
+
+async def get_followup_response(chat_id: int) -> str:
+    """Call GPT again after tool result to compose a natural response."""
+    today = datetime.now(TIMEZONE)
+    today_str = today.strftime("%Y-%m-%d")
+    weekday_names = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
+    today_weekday = weekday_names[today.weekday()]
+
+    system = SYSTEM_PROMPT.format(today=today_str, weekday=today_weekday)
+    history = _get_history(chat_id)
+    messages = [{"role": "system", "content": system}] + history
+
+    try:
+        response = await _client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=messages,
+            max_tokens=1000,
+        )
+        content = response.choices[0].message.content or "결과를 처리할 수 없습니다."
+        add_assistant_message(chat_id, content)
+        return content
+    except Exception:
+        logger.exception("Error in get_followup_response")
+        return "결과를 처리하는 중 오류가 발생했습니다."

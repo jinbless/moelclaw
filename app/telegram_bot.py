@@ -191,6 +191,7 @@ FUNCTION_REGISTRY = {
 }
 
 _MUTATION_FUNCTIONS = {"add_event", "add_events_by_range", "add_multiday_event", "delete_event", "delete_events_by_range", "edit_event"}
+_QUERY_FUNCTIONS = {"get_today_events", "get_week_events", "search_events"}
 
 
 def _extract_month_range(fn_name: str, args: dict) -> tuple[str, str] | None:
@@ -297,13 +298,19 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Feed execution result back into conversation history
         if tool_call_id:
             nlp_service.add_tool_result(chat_id, tool_call_id, reply)
-        await update.message.reply_text(reply)
 
-        # After mutation, show the affected month's events
-        if fn_name in _MUTATION_FUNCTIONS:
-            month_summary = await _get_month_summary(chat_id, fn_name, args)
-            if month_summary:
-                await update.message.reply_text(month_summary)
+        if fn_name in _QUERY_FUNCTIONS:
+            # Let GPT analyze results and compose a natural response
+            gpt_reply = await nlp_service.get_followup_response(chat_id)
+            await update.message.reply_text(gpt_reply)
+        else:
+            await update.message.reply_text(reply)
+
+            # After mutation, show the affected month's events
+            if fn_name in _MUTATION_FUNCTIONS:
+                month_summary = await _get_month_summary(chat_id, fn_name, args)
+                if month_summary:
+                    await update.message.reply_text(month_summary)
     except Exception:
         logger.exception("Error executing %s", fn_name)
         if tool_call_id:

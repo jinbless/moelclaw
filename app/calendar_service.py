@@ -535,9 +535,9 @@ async def search_events(
             "singleEvents": True,
             "orderBy": "startTime",
         }
-        if keyword:
-            params["q"] = keyword
-
+        # Don't use API q param — it does word-level matching and
+        # misses substrings like "AX" in "AX서밋".
+        # Fetch all events in range; GPT will filter semantically.
         result = service.events().list(**params).execute()
         return result.get("items", [])
 
