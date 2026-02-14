@@ -1,4 +1,5 @@
 import asyncio
+import calendar as cal
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -408,14 +409,12 @@ async def search_events(
         now = datetime.now(TIMEZONE)
 
         if date_from:
-            time_min = datetime.strptime(date_from, "%Y-%m-%d").replace(
-                tzinfo=TIMEZONE
-            )
+            time_min = _safe_parse_date(date_from).replace(tzinfo=TIMEZONE)
         else:
             time_min = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         if date_to:
-            time_max = datetime.strptime(date_to, "%Y-%m-%d").replace(
+            time_max = _safe_parse_date(date_to).replace(
                 hour=23, minute=59, second=59, tzinfo=TIMEZONE
             )
         else:
@@ -443,6 +442,15 @@ async def search_events(
 
 
 # ── Internal Helpers ──────────────────────────────────────────────
+
+def _safe_parse_date(date_str: str) -> datetime:
+    """Parse YYYY-MM-DD, clamping invalid days to the last day of the month."""
+    parts = date_str.split("-")
+    year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+    max_day = cal.monthrange(year, month)[1]
+    day = min(day, max_day)
+    return datetime(year, month, day)
+
 
 def _find_events_by_date(creds: Credentials, date: str) -> list[dict]:
     start_of_day = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=TIMEZONE)
