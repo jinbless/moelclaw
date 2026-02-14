@@ -240,19 +240,18 @@ SYSTEM_PROMPT = """당신은 캘린더 관리 어시스턴트입니다.
 
 # ── Public API ────────────────────────────────────────────────────
 
-async def process_message(user_message: str, chat_id: int) -> dict:
+def _build_messages(chat_id: int) -> list[dict]:
     today = datetime.now(TIMEZONE)
     today_str = today.strftime("%Y-%m-%d")
     weekday_names = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
     today_weekday = weekday_names[today.weekday()]
-
     system = SYSTEM_PROMPT.format(today=today_str, weekday=today_weekday)
+    return [{"role": "system", "content": system}] + _get_history(chat_id)
 
-    # Build messages: system + history + current user message
+
+async def process_message(user_message: str, chat_id: int) -> dict:
     add_user_message(chat_id, user_message)
-    history = _get_history(chat_id)
-
-    messages = [{"role": "system", "content": system}] + history
+    messages = _build_messages(chat_id)
 
     try:
         response = await _client.chat.completions.create(
@@ -302,14 +301,7 @@ async def process_message(user_message: str, chat_id: int) -> dict:
 
 async def get_followup_response(chat_id: int) -> str:
     """Call GPT again after tool result to compose a natural response."""
-    today = datetime.now(TIMEZONE)
-    today_str = today.strftime("%Y-%m-%d")
-    weekday_names = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
-    today_weekday = weekday_names[today.weekday()]
-
-    system = SYSTEM_PROMPT.format(today=today_str, weekday=today_weekday)
-    history = _get_history(chat_id)
-    messages = [{"role": "system", "content": system}] + history
+    messages = _build_messages(chat_id)
 
     try:
         response = await _client.chat.completions.create(

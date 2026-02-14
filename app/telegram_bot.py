@@ -239,14 +239,7 @@ async def _get_month_summary(chat_id: int, fn_name: str, args: dict) -> str | No
     current_date = ""
     for event in events:
         summary = event.get("summary", "(제목 없음)")
-        start = event.get("start", {})
-
-        if "dateTime" in start:
-            dt_str = start["dateTime"][:10]
-            time_str = start["dateTime"][11:16]
-        else:
-            dt_str = start.get("date", "")
-            time_str = _format_allday_label(event)
+        dt_str, time_str = _event_time(event)
 
         if dt_str != current_date:
             current_date = dt_str
@@ -320,27 +313,24 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # ── Formatters ────────────────────────────────────────────────────
 
-def _format_allday_label(event: dict) -> str:
-    """Return '종일' for single-day or '02-27~03-10 종일' for multi-day."""
+def _event_time(event: dict) -> tuple[str, str]:
+    """Return (date_str, time_str) for any event type."""
     start = event.get("start", {})
-    end = event.get("end", {})
+    if "dateTime" in start:
+        return start["dateTime"][:10], start["dateTime"][11:16]
+    # All-day event
     start_date = start.get("date", "")
-    end_date = end.get("date", "")
-
-    if not start_date or not end_date:
-        return "종일"
-
-    try:
-        s = datetime.strptime(start_date, "%Y-%m-%d")
-        e = datetime.strptime(end_date, "%Y-%m-%d")
-        # end.date is exclusive in Google Calendar API
-        if (e - s).days > 1:
-            actual_end = (e - timedelta(days=1)).strftime("%m-%d")
-            return f"{start_date[5:]}~{actual_end} 종일"
-    except ValueError:
-        pass
-
-    return "종일"
+    end_date = event.get("end", {}).get("date", "")
+    if start_date and end_date:
+        try:
+            s = datetime.strptime(start_date, "%Y-%m-%d")
+            e = datetime.strptime(end_date, "%Y-%m-%d")
+            if (e - s).days > 1:
+                actual_end = (e - timedelta(days=1)).strftime("%m-%d")
+                return start_date, f"{start_date[5:]}~{actual_end} 종일"
+        except ValueError:
+            pass
+    return start_date, "종일"
 
 
 def format_today_events(events: list[dict]) -> str:
@@ -350,11 +340,7 @@ def format_today_events(events: list[dict]) -> str:
     lines = ["📅 오늘의 일정:\n"]
     for i, event in enumerate(events, 1):
         summary = event.get("summary", "(제목 없음)")
-        start = event.get("start", {})
-        if "dateTime" in start:
-            time_str = start["dateTime"][11:16]
-        else:
-            time_str = _format_allday_label(event)
+        _, time_str = _event_time(event)
         lines.append(f"{i}. 🕐 {time_str} - {summary}")
 
     return "\n".join(lines)
@@ -368,14 +354,7 @@ def format_week_events(events: list[dict]) -> str:
     current_date = ""
     for event in events:
         summary = event.get("summary", "(제목 없음)")
-        start = event.get("start", {})
-
-        if "dateTime" in start:
-            dt_str = start["dateTime"][:10]
-            time_str = start["dateTime"][11:16]
-        else:
-            dt_str = start.get("date", "")
-            time_str = _format_allday_label(event)
+        dt_str, time_str = _event_time(event)
 
         if dt_str != current_date:
             current_date = dt_str
@@ -406,16 +385,8 @@ def format_search_results(events: list[dict], keyword: str | None = None) -> str
     lines = [header]
     for i, event in enumerate(events, 1):
         summary = event.get("summary", "(제목 없음)")
-        start = event.get("start", {})
-
-        if "dateTime" in start:
-            date_str = start["dateTime"][:10]
-            time_str = start["dateTime"][11:16]
-            lines.append(f"{i}. 📅 {date_str} 🕐 {time_str} - {summary}")
-        else:
-            date_str = start.get("date", "")
-            allday = _format_allday_label(event)
-            lines.append(f"{i}. 📅 {date_str} {allday} - {summary}")
+        date_str, time_str = _event_time(event)
+        lines.append(f"{i}. 📅 {date_str} 🕐 {time_str} - {summary}")
 
     return "\n".join(lines)
 
