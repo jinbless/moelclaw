@@ -204,6 +204,7 @@ async def delete_event(
     chat_id: int,
     title: str,
     date: str,
+    original_time: str | None = None,
 ) -> tuple[bool, str]:
     creds = await asyncio.to_thread(_load_credentials, chat_id)
     if creds is None:
@@ -211,7 +212,7 @@ async def delete_event(
 
     def _delete():
         events = _find_events_by_date(creds, date)
-        matched = _match_event_by_title(events, title)
+        matched = _match_event(events, title, original_time)
         if not matched:
             return None, "해당 날짜에 일치하는 일정을 찾을 수 없습니다."
 
@@ -242,6 +243,7 @@ async def edit_event(
     title: str,
     date: str,
     changes: dict,
+    original_time: str | None = None,
 ) -> tuple[bool, str]:
     creds = await asyncio.to_thread(_load_credentials, chat_id)
     if creds is None:
@@ -249,7 +251,7 @@ async def edit_event(
 
     def _update():
         events = _find_events_by_date(creds, date)
-        matched = _match_event_by_title(events, title)
+        matched = _match_event(events, title, original_time)
         if not matched:
             return None, "해당 날짜에 일치하는 일정을 찾을 수 없습니다."
 
@@ -467,10 +469,27 @@ def _find_events_by_date(creds: Credentials, date: str) -> list[dict]:
     return result.get("items", [])
 
 
-def _match_event_by_title(events: list[dict], title: str) -> dict | None:
+def _match_event(events: list[dict], title: str, start_time: str | None = None) -> dict | None:
+    """Match an event by title, then by start time, then by single-event fallback."""
+    if not events:
+        return None
+
+    # 1. Try title match
     title_lower = title.lower()
     for event in events:
         summary = event.get("summary", "").lower()
         if title_lower in summary or summary in title_lower:
             return event
+
+    # 2. Try start time match
+    if start_time:
+        for event in events:
+            event_start = event.get("start", {}).get("dateTime", "")
+            if event_start and event_start[11:16] == start_time:
+                return event
+
+    # 3. If only one event on that day, use it
+    if len(events) == 1:
+        return events[0]
+
     return None

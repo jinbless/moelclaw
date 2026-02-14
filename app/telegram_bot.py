@@ -161,6 +161,7 @@ async def _handle_delete(update: Update, chat_id: int, parsed: dict) -> None:
         chat_id=chat_id,
         title=parsed["title"],
         date=parsed["date"],
+        original_time=parsed.get("original_time"),
     )
 
     if success:
@@ -181,6 +182,7 @@ async def _handle_edit(update: Update, chat_id: int, parsed: dict) -> None:
         title=parsed["title"],
         date=parsed["date"],
         changes=changes,
+        original_time=parsed.get("original_time"),
     )
 
     if success:

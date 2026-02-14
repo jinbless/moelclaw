@@ -38,15 +38,17 @@ SYSTEM_PROMPT = """당신은 캘린더 관리 어시스턴트입니다.
 ### delete (일정 삭제)
 {
   "intent": "delete",
-  "title": "삭제할 일정 제목 (부분 일치 가능)",
-  "date": "YYYY-MM-DD"
+  "title": "삭제할 일정 제목 (부분 일치 가능, 모르면 빈 문자열)",
+  "date": "YYYY-MM-DD",
+  "original_time": "기존 시작시간 HH:MM (언급된 경우, 없으면 null)"
 }
 
 ### edit (일정 수정)
 {
   "intent": "edit",
-  "title": "수정할 일정 제목 (부분 일치 가능)",
+  "title": "수정할 일정 제목 (부분 일치 가능, 모르면 빈 문자열)",
   "date": "YYYY-MM-DD",
+  "original_time": "기존 시작시간 HH:MM (언급된 경우, 없으면 null)",
   "changes": {
     "title": "새 제목 또는 null",
     "date": "새 날짜 또는 null",
