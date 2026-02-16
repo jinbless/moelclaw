@@ -413,7 +413,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
-    url = geo_service.build_directions_url(
+    app_url, web_url = geo_service.build_directions_url(
         start_lat=location.latitude,
         start_lng=location.longitude,
         dest_lat=pending["lat"],
@@ -425,7 +425,8 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         f"🗺️ {pending['destination']} 길찾기\n\n"
         f"📍 출발: 현재 위치\n"
         f"📍 도착: {pending['address']}\n\n"
-        f"👉 {url}",
+        f"👉 네이버 지도 앱: {app_url}\n"
+        f"🌐 웹에서 보기: {web_url}",
         reply_markup=ReplyKeyboardRemove(),
     )
 
