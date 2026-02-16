@@ -37,7 +37,8 @@ async def geocode(query: str) -> dict | None:
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
                 if resp.status != 200:
-                    logger.error("Naver geocode API returned status %s", resp.status)
+                    body = await resp.text()
+                    logger.error("Naver geocode API returned status %s: %s", resp.status, body)
                     return None
                 data = await resp.json()
     except Exception:
