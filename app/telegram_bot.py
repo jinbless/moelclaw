@@ -341,6 +341,9 @@ async def _get_month_summary(chat_id: int, fn_name: str, args: dict) -> str | No
                 lines.append(f"\n  📆 {dt_str}")
 
         lines.append(f"    🕐 {time_str} - {summary}")
+        detail = _event_detail(event)
+        if detail:
+            lines.append(f"      {detail}")
 
     return "\n".join(lines)
 
@@ -473,6 +476,18 @@ def _event_time(event: dict) -> tuple[str, str]:
     return start_date, "종일"
 
 
+def _event_detail(event: dict) -> str:
+    """Return location and description suffix for an event."""
+    parts = []
+    location = event.get("location", "")
+    description = event.get("description", "")
+    if location:
+        parts.append(f"📍 {location}")
+    if description:
+        parts.append(f"💬 {description}")
+    return "\n    ".join(parts)
+
+
 def format_today_events(events: list[dict]) -> str:
     if not events:
         return "📭 오늘은 예정된 일정이 없습니다."
@@ -482,6 +497,9 @@ def format_today_events(events: list[dict]) -> str:
         summary = event.get("summary", "(제목 없음)")
         _, time_str = _event_time(event)
         lines.append(f"{i}. 🕐 {time_str} - {summary}")
+        detail = _event_detail(event)
+        if detail:
+            lines.append(f"    {detail}")
 
     return "\n".join(lines)
 
@@ -506,6 +524,9 @@ def format_week_events(events: list[dict]) -> str:
                 lines.append(f"\n📆 {dt_str}")
 
         lines.append(f"  🕐 {time_str} - {summary}")
+        detail = _event_detail(event)
+        if detail:
+            lines.append(f"    {detail}")
 
     return "\n".join(lines)
 
@@ -527,6 +548,9 @@ def format_search_results(events: list[dict], keyword: str | None = None) -> str
         summary = event.get("summary", "(제목 없음)")
         date_str, time_str = _event_time(event)
         lines.append(f"{i}. 📅 {date_str} 🕐 {time_str} - {summary}")
+        detail = _event_detail(event)
+        if detail:
+            lines.append(f"    {detail}")
 
     return "\n".join(lines)
 
