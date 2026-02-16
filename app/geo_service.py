@@ -65,10 +65,11 @@ def build_directions_url(
     dest_lng: float,
     dest_name: str,
 ) -> str:
-    """Build a Google Maps directions URL."""
+    """Build a Naver Maps transit directions URL."""
     encoded_name = quote(dest_name)
     return (
-        f"https://www.google.com/maps/dir/"
-        f"{start_lat},{start_lng}/"
-        f"{dest_lat},{dest_lng}/"
+        f"https://map.naver.com/v5/directions/"
+        f"{start_lng},{start_lat},%ED%98%84%EC%9E%AC%EC%9C%84%EC%B9%98/"
+        f"{dest_lng},{dest_lat},{encoded_name}/"
+        f"-/transit"
     )
