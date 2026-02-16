@@ -388,7 +388,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 resize_keyboard=True,
                 one_time_keyboard=True,
             )
-            await update.message.reply_text(reply, reply_markup=keyboard)
+            sent = await update.message.reply_text(reply, reply_markup=keyboard)
+            _pending_navigation[chat_id]["prompt_message_id"] = sent.message_id
         elif fn_name in _QUERY_FUNCTIONS:
             # Let GPT analyze results and compose a natural response
             gpt_reply = await nlp_service.get_followup_response(chat_id)
@@ -421,6 +422,15 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
+    # Clean up: delete the bot's prompt message and user's location message
+    prompt_msg_id = pending.get("prompt_message_id")
+    try:
+        if prompt_msg_id:
+            await context.bot.delete_message(chat_id=chat_id, message_id=prompt_msg_id)
+        await update.message.delete()
+    except Exception:
+        logger.debug("Could not delete navigation prompt/location messages")
+
     url = geo_service.build_directions_url(
         start_lat=location.latitude,
         start_lng=location.longitude,
@@ -429,11 +439,14 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         dest_name=pending["destination"],
     )
 
-    await update.message.reply_text(
-        f"🗺️ {pending['destination']} 길찾기\n\n"
-        f"📍 출발: 현재 위치\n"
-        f"📍 도착: {pending['address']}\n\n"
-        f"👉 {url}",
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=(
+            f"🗺️ {pending['destination']} 길찾기\n\n"
+            f"📍 출발: 현재 위치\n"
+            f"📍 도착: {pending['address']}\n\n"
+            f"👉 {url}"
+        ),
         reply_markup=ReplyKeyboardRemove(),
     )
 
