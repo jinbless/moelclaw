@@ -2,7 +2,7 @@ import calendar as cal
 import logging
 from datetime import datetime, timedelta
 
-from telegram import Update
+from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -11,7 +11,7 @@ from telegram.ext import (
     filters,
 )
 
-from app import calendar_service, nlp_service
+from app import calendar_service, naver_service, nlp_service
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +178,85 @@ async def _exec_search_events(chat_id: int, args: dict) -> str:
     return format_search_results(events, args.get("keyword"))
 
 
+# ── Navigation ───────────────────────────────────────────────────
+
+# Pending navigation: chat_id -> {"destination": str, "lat": float, "lng": float, "address": str}
+_pending_navigation: dict[int, dict] = {}
+
+
+async def _exec_navigate(chat_id: int, args: dict) -> str:
+    destination = args.get("destination", "")
+    if not destination:
+        return "목적지를 알려주세요."
+
+    result = await naver_service.geocode(destination)
+    if result is None:
+        return f"'{destination}'의 위치를 찾을 수 없습니다. 더 구체적인 주소나 장소명을 알려주세요."
+
+    _pending_navigation[chat_id] = {
+        "destination": destination,
+        "lat": result["lat"],
+        "lng": result["lng"],
+        "address": result["address"],
+    }
+    return f"📍 '{destination}' 위치를 찾았습니다!\n({result['address']})\n\n아래 버튼을 눌러 현재 위치를 공유해주세요."
+
+
+async def _exec_navigate_to_event(chat_id: int, args: dict) -> str:
+    events = await calendar_service.get_today_events()
+    if not events:
+        return "오늘 예정된 일정이 없습니다."
+
+    title_filter = args.get("title", "")
+    now = datetime.now()
+
+    target = None
+    for event in events:
+        summary = event.get("summary", "")
+        location = event.get("location", "")
+        if not location:
+            continue
+
+        # If title filter is given, match it
+        if title_filter and title_filter not in summary:
+            continue
+
+        # If no title filter, pick the nearest upcoming event
+        if not title_filter:
+            start = event.get("start", {})
+            if "dateTime" in start:
+                event_time = datetime.fromisoformat(start["dateTime"])
+                if event_time < now:
+                    continue
+        target = event
+        break
+
+    if target is None:
+        if title_filter:
+            return f"'{title_filter}' 일정을 찾을 수 없거나 장소 정보가 없습니다."
+        return "장소 정보가 있는 다음 일정을 찾을 수 없습니다."
+
+    location = target["location"]
+    summary = target.get("summary", "(제목 없음)")
+    _, time_str = _event_time(target)
+
+    result = await naver_service.geocode(location)
+    if result is None:
+        return f"'{location}'의 위치를 찾을 수 없습니다."
+
+    _pending_navigation[chat_id] = {
+        "destination": location,
+        "lat": result["lat"],
+        "lng": result["lng"],
+        "address": result["address"],
+    }
+    return (
+        f"📅 {summary} ({time_str})\n"
+        f"📍 '{location}' 위치를 찾았습니다!\n({result['address']})\n\n"
+        f"아래 버튼을 눌러 현재 위치를 공유해주세요."
+    )
+
+
 FUNCTION_REGISTRY = {
     "add_event": _exec_add_event,
     "add_events_by_range": _exec_add_events_by_range,
@@ -188,10 +267,13 @@ FUNCTION_REGISTRY = {
     "get_today_events": _exec_get_today_events,
     "get_week_events": _exec_get_week_events,
     "search_events": _exec_search_events,
+    "navigate": _exec_navigate,
+    "navigate_to_event": _exec_navigate_to_event,
 }
 
 _MUTATION_FUNCTIONS = {"add_event", "add_events_by_range", "add_multiday_event", "delete_event", "delete_events_by_range", "edit_event"}
 _QUERY_FUNCTIONS = {"get_today_events", "get_week_events", "search_events"}
+_NAVIGATION_FUNCTIONS = {"navigate", "navigate_to_event"}
 
 
 def _extract_month_range(fn_name: str, args: dict) -> tuple[str, str] | None:
@@ -292,7 +374,14 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         if tool_call_id:
             nlp_service.add_tool_result(chat_id, tool_call_id, reply)
 
-        if fn_name in _QUERY_FUNCTIONS:
+        if fn_name in _NAVIGATION_FUNCTIONS and chat_id in _pending_navigation:
+            keyboard = ReplyKeyboardMarkup(
+                [[KeyboardButton("📍 현재 위치 공유", request_location=True)]],
+                resize_keyboard=True,
+                one_time_keyboard=True,
+            )
+            await update.message.reply_text(reply, reply_markup=keyboard)
+        elif fn_name in _QUERY_FUNCTIONS:
             # Let GPT analyze results and compose a natural response
             gpt_reply = await nlp_service.get_followup_response(chat_id)
             await update.message.reply_text(gpt_reply)
@@ -309,6 +398,36 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         if tool_call_id:
             nlp_service.add_tool_result(chat_id, tool_call_id, "처리 중 오류가 발생했습니다.")
         await update.message.reply_text("처리 중 오류가 발생했습니다.")
+
+
+async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle location shared by user (for navigation flow)."""
+    chat_id = update.effective_chat.id
+    location = update.message.location
+
+    pending = _pending_navigation.pop(chat_id, None)
+    if pending is None:
+        await update.message.reply_text(
+            "길찾기 요청이 없습니다. 먼저 목적지를 알려주세요.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+
+    url = naver_service.build_directions_url(
+        start_lat=location.latitude,
+        start_lng=location.longitude,
+        dest_lat=pending["lat"],
+        dest_lng=pending["lng"],
+        dest_name=pending["destination"],
+    )
+
+    await update.message.reply_text(
+        f"🗺️ {pending['destination']} 길찾기\n\n"
+        f"📍 출발: 현재 위치\n"
+        f"📍 도착: {pending['address']}\n\n"
+        f"👉 {url}",
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
 
 # ── Formatters ────────────────────────────────────────────────────
@@ -412,5 +531,8 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("today", today_command))
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message)
+    )
+    application.add_handler(
+        MessageHandler(filters.LOCATION, handle_location)
     )
     application.add_error_handler(error_handler)

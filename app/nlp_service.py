@@ -218,6 +218,42 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "navigate",
+            "description": "목적지까지의 길찾기(네비게이션)를 제공합니다. 사용자가 '~에 가고 싶어', '~ 가는 길', '~ 어떻게 가?', '~ 길찾기' 등 장소 이동/경로를 요청할 때 호출하세요.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "destination": {
+                        "type": "string",
+                        "description": "목적지 이름 또는 주소. 예: '광화문', '서울역', '강남역 2번 출구'",
+                    },
+                },
+                "required": ["destination"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "navigate_to_event",
+            "description": "캘린더 일정의 장소로 길찾기를 제공합니다. '다음 일정 장소로 가는 길', '오후 회의 장소 길찾기' 등 캘린더 일정의 장소로 이동하려 할 때 호출하세요.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "일정 제목 (선택). 미입력 시 가장 가까운 다음 일정 사용",
+                    },
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 SYSTEM_PROMPT = """당신은 캘린더 관리 어시스턴트입니다.
@@ -235,7 +271,9 @@ SYSTEM_PROMPT = """당신은 캘린더 관리 어시스턴트입니다.
 - 범위 삭제 요청("2월 일정 다 지워줘", "이번 주 일정 전부 삭제")에는 delete_events_by_range를 사용하세요.
 - 사용자가 특정 날짜+시간의 기존 일정을 언급하면서 수정/삭제를 요청하면, 새 일정 추가가 아닌 edit_event 또는 delete_event를 호출하세요.
 - 출장, 휴가, 여행 등 기간 일정은 add_multiday_event를 사용하세요 (종일 단일 이벤트).
-- 매일 같은 시간에 반복되는 일정(회의, 스탠드업 등)은 add_events_by_range를 사용하세요."""
+- 매일 같은 시간에 반복되는 일정(회의, 스탠드업 등)은 add_events_by_range를 사용하세요.
+- 사용자가 장소 이동, 길찾기, 경로 안내를 요청하면 navigate 함수를 호출하세요.
+- 사용자가 캘린더 일정의 장소로 길찾기를 요청하면 navigate_to_event 함수를 호출하세요."""
 
 
 # ── Public API ────────────────────────────────────────────────────
