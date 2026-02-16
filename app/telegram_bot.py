@@ -203,9 +203,17 @@ async def _exec_navigate(chat_id: int, args: dict) -> str:
 
 
 async def _exec_navigate_to_event(chat_id: int, args: dict) -> str:
-    events = await calendar_service.get_today_events()
+    date_str = args.get("date", "")
+    if date_str:
+        events = await calendar_service.search_events(
+            chat_id=chat_id, date_from=date_str, date_to=date_str
+        )
+    else:
+        events = await calendar_service.get_today_events()
+
     if not events:
-        return "오늘 예정된 일정이 없습니다."
+        label = date_str if date_str else "오늘"
+        return f"{label} 예정된 일정이 없습니다."
 
     title_filter = args.get("title", "")
     now = datetime.now()
@@ -221,8 +229,8 @@ async def _exec_navigate_to_event(chat_id: int, args: dict) -> str:
         if title_filter and title_filter not in summary:
             continue
 
-        # If no title filter, pick the nearest upcoming event
-        if not title_filter:
+        # If no title filter and searching today, pick the nearest upcoming event
+        if not title_filter and not date_str:
             start = event.get("start", {})
             if "dateTime" in start:
                 event_time = datetime.fromisoformat(start["dateTime"])
@@ -413,7 +421,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
-    app_url, web_url = geo_service.build_directions_url(
+    url = geo_service.build_directions_url(
         start_lat=location.latitude,
         start_lng=location.longitude,
         dest_lat=pending["lat"],
@@ -425,8 +433,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         f"🗺️ {pending['destination']} 길찾기\n\n"
         f"📍 출발: 현재 위치\n"
         f"📍 도착: {pending['address']}\n\n"
-        f"👉 네이버 지도 앱: {app_url}\n"
-        f"🌐 웹에서 보기: {web_url}",
+        f"👉 {url}",
         reply_markup=ReplyKeyboardRemove(),
     )
 

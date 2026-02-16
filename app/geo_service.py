@@ -64,21 +64,14 @@ def build_directions_url(
     dest_lat: float,
     dest_lng: float,
     dest_name: str,
-) -> tuple[str, str]:
-    """Build Naver Maps directions URLs (app + web fallback)."""
+) -> str:
+    """Build a Naver Maps mobile directions URL."""
     encoded_name = quote(dest_name)
-
-    app_url = (
-        f"nmap://route/public?slat={start_lat}&slng={start_lng}&sname=현재위치"
-        f"&dlat={dest_lat}&dlng={dest_lng}&dname={encoded_name}"
-        f"&appname=com.tgcalendar.bot"
+    return (
+        f"https://m.map.naver.com/route.nhn?menu=route"
+        f"&sname=%ED%98%84%EC%9E%AC%EC%9C%84%EC%B9%98"
+        f"&sx={start_lng}&sy={start_lat}"
+        f"&ename={encoded_name}"
+        f"&ex={dest_lng}&ey={dest_lat}"
+        f"&pathType=0&showMap=true"
     )
-
-    web_url = (
-        f"https://map.naver.com/v5/directions/"
-        f"{start_lng},{start_lat},%ED%98%84%EC%9E%AC%EC%9C%84%EC%B9%98,,"
-        f"/{dest_lng},{dest_lat},{encoded_name},,"
-        f"/-/transit?c=15.00,0,0,0,dh"
-    )
-
-    return app_url, web_url
