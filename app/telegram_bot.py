@@ -184,6 +184,20 @@ async def _exec_search_events(chat_id: int, args: dict) -> str:
 _pending_navigation: dict[int, dict] = {}
 
 
+def _extract_location(event: dict) -> str:
+    """Extract location from event's location field, falling back to description."""
+    location = event.get("location") or ""
+    if location:
+        return location
+    # Parse "장소: ..." from description
+    description = event.get("description") or ""
+    for line in description.split("\n"):
+        line = line.strip()
+        if line.startswith("장소:") or line.startswith("장소 :"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
 async def _exec_navigate(chat_id: int, args: dict) -> str:
     destination = args.get("destination", "")
     title_filter = args.get("title", "")
@@ -223,7 +237,7 @@ async def _exec_navigate(chat_id: int, args: dict) -> str:
     target = None
     for event in events:
         summary = event.get("summary", "")
-        location = event.get("location", "")
+        location = _extract_location(event)
         if not location:
             continue
 
@@ -245,7 +259,7 @@ async def _exec_navigate(chat_id: int, args: dict) -> str:
             return f"'{title_filter}' 일정을 찾을 수 없거나 장소 정보가 없습니다."
         return "장소 정보가 있는 다음 일정을 찾을 수 없습니다."
 
-    location = target["location"]
+    location = _extract_location(target)
     summary = target.get("summary", "(제목 없음)")
     _, time_str = _event_time(target)
 
@@ -479,12 +493,19 @@ def _event_time(event: dict) -> tuple[str, str]:
 def _event_detail(event: dict) -> str:
     """Return location and description suffix for an event."""
     parts = []
-    location = event.get("location", "")
+    location = _extract_location(event)
     description = event.get("description", "")
     if location:
         parts.append(f"📍 {location}")
     if description:
-        parts.append(f"💬 {description}")
+        # Don't repeat location line already shown as 📍
+        desc_lines = [
+            ln for ln in description.split("\n")
+            if not ln.strip().startswith("장소:") and not ln.strip().startswith("장소 :")
+        ]
+        remaining = "\n".join(desc_lines).strip()
+        if remaining:
+            parts.append(f"💬 {remaining}")
     return "\n    ".join(parts)
 
 
