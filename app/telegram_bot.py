@@ -210,6 +210,11 @@ async def _exec_navigate(chat_id: int, args: dict) -> str:
     else:
         events = await calendar_service.get_today_events()
 
+    logger.info("navigate: title_filter=%r, date_str=%r, events_count=%d", title_filter, date_str, len(events))
+    for i, ev in enumerate(events):
+        logger.info("  event[%d]: summary=%r, location=%r, description=%r",
+                     i, ev.get("summary"), ev.get("location"), ev.get("description", "")[:100])
+
     if not events:
         label = date_str if date_str else "오늘"
         return f"{label} 예정된 일정이 없습니다."
