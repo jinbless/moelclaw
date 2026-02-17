@@ -64,7 +64,7 @@ def _build_messages(chat_id: int) -> list[dict]:
     weekday_names = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
     today_weekday = weekday_names[today.weekday()]
     system = SYSTEM_PROMPT.format(today=today_str, weekday=today_weekday)
-    return [{"role": "system", "content": system}] + _get_history(chat_id)
+    return [{"role": "developer", "content": system}] + _get_history(chat_id)
 
 
 async def process_message(user_message: str, chat_id: int) -> dict:
@@ -77,7 +77,8 @@ async def process_message(user_message: str, chat_id: int) -> dict:
             messages=messages,
             tools=TOOLS,
             tool_choice="auto",
-            max_tokens=500,
+            max_completion_tokens=500,
+            reasoning_effort="low",
         )
 
         message = response.choices[0].message
@@ -125,7 +126,8 @@ async def get_followup_response(chat_id: int) -> str:
         response = await _client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=messages,
-            max_tokens=1000,
+            max_completion_tokens=1000,
+            reasoning_effort="low",
         )
         content = response.choices[0].message.content or "결과를 처리할 수 없습니다."
         add_assistant_message(chat_id, content)

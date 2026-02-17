@@ -39,7 +39,7 @@ GOOGLE_SCOPES: list[str] = ["https://www.googleapis.com/auth/calendar"]
 OAUTH_SERVER_PORT: int = int(os.environ.get("OAUTH_SERVER_PORT", "8080"))
 
 # OpenAI model
-OPENAI_MODEL: str = "gpt-4.1"
+OPENAI_MODEL: str = "gpt-5-mini"
 
 # Google Maps (Geocoding API)
 GOOGLE_MAPS_API_KEY: str = os.environ.get("GOOGLE_MAPS_API_KEY", "")
