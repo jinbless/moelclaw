@@ -341,7 +341,7 @@ async def _get_month_summary(chat_id: int, fn_name: str, args: dict) -> str | No
 
     lines = [f"\n📋 {month_label} 전체 일정 ({len(events)}건):"]
     current_date = ""
-    for event in events:
+    for idx, event in enumerate(events, 1):
         summary = event.get("summary", "(제목 없음)")
         dt_str, time_str = _event_time(event)
 
@@ -354,7 +354,7 @@ async def _get_month_summary(chat_id: int, fn_name: str, args: dict) -> str | No
             except ValueError:
                 lines.append(f"\n  📆 {dt_str}")
 
-        lines.append(f"    🕐 {time_str} - {summary}")
+        lines.append(f"    {idx}. 🕐 {time_str} - {summary}")
         detail = _event_detail(event)
         if detail:
             lines.append(f"      {detail}")
