@@ -408,9 +408,15 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             sent = await update.message.reply_text(reply, reply_markup=keyboard)
             _pending_navigation[chat_id]["prompt_message_id"] = sent.message_id
         elif fn_name in _QUERY_FUNCTIONS:
-            # Let GPT analyze results and compose a natural response
-            gpt_reply = await nlp_service.get_followup_response(chat_id)
-            await update.message.reply_text(gpt_reply)
+            has_keyword = fn_name == "search_events" and args.get("keyword")
+            if has_keyword:
+                # Semantic filtering needed — let GPT compose the response
+                gpt_reply = await nlp_service.get_followup_response(chat_id)
+                await update.message.reply_text(gpt_reply)
+            else:
+                # Full listing — send formatted text directly
+                await update.message.reply_text(reply)
+                nlp_service.add_assistant_message(chat_id, reply)
         else:
             await update.message.reply_text(reply)
 
@@ -531,7 +537,7 @@ def format_week_events(events: list[dict]) -> str:
 
     lines = ["📅 이번 주 일정:\n"]
     current_date = ""
-    for event in events:
+    for idx, event in enumerate(events, 1):
         summary = event.get("summary", "(제목 없음)")
         dt_str, time_str = _event_time(event)
 
@@ -544,10 +550,10 @@ def format_week_events(events: list[dict]) -> str:
             except ValueError:
                 lines.append(f"\n📆 {dt_str}")
 
-        lines.append(f"  🕐 {time_str} - {summary}")
+        lines.append(f"  {idx}. 🕐 {time_str} - {summary}")
         detail = _event_detail(event)
         if detail:
-            lines.append(f"    {detail}")
+            lines.append(f"      {detail}")
 
     return "\n".join(lines)
 

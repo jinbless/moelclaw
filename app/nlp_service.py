@@ -78,7 +78,7 @@ async def process_message(user_message: str, chat_id: int) -> dict:
             tools=TOOLS,
             tool_choice="auto",
             max_completion_tokens=500,
-            reasoning_effort="low",
+            reasoning_effort="medium",
         )
 
         message = response.choices[0].message
@@ -126,8 +126,8 @@ async def get_followup_response(chat_id: int) -> str:
         response = await _client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=messages,
-            max_completion_tokens=1000,
-            reasoning_effort="low",
+            max_completion_tokens=5000,
+            reasoning_effort="medium",
         )
         content = response.choices[0].message.content or "결과를 처리할 수 없습니다."
         add_assistant_message(chat_id, content)
