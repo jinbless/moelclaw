@@ -418,6 +418,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     f'결과는 "1. 📅 날짜 🕐 시간 - 제목" 형식으로 연번을 붙여주세요.'
                 )
                 gpt_reply = await nlp_service.get_followup_response(chat_id, filter_instruction)
+                # Replace full tool result with filtered result for clean history
+                nlp_service.replace_last_tool_result(chat_id, gpt_reply)
                 await update.message.reply_text(gpt_reply)
             else:
                 # Full listing — send formatted text directly

@@ -56,6 +56,15 @@ def add_assistant_message(chat_id: int, content: str) -> None:
     _trim_history(chat_id)
 
 
+def replace_last_tool_result(chat_id: int, new_content: str) -> None:
+    """Replace the last tool result in history with filtered content."""
+    hist = _get_history(chat_id)
+    for i in range(len(hist) - 1, -1, -1):
+        if hist[i].get("role") == "tool":
+            hist[i]["content"] = new_content
+            break
+
+
 # ── Public API ────────────────────────────────────────────────────
 
 def _build_messages(chat_id: int) -> list[dict]:
