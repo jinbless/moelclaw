@@ -137,7 +137,7 @@ async def process_message(user_message: str, chat_id: int) -> dict:
             messages=messages,
             tools=TOOLS,
             tool_choice="auto",
-            max_completion_tokens=500,
+            max_completion_tokens=2000,
             reasoning_effort="medium",
         )
 
