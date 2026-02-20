@@ -414,7 +414,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 keyword = args["keyword"]
                 filter_instruction = (
                     f'위 일정 목록에서 "{keyword}"와 의미적으로 관련된 일정만 골라서 안내해주세요. '
-                    f'관련 없는 일정은 제외하세요.'
+                    f'관련 없는 일정은 제외하세요. '
+                    f'결과는 "1. 📅 날짜 🕐 시간 - 제목" 형식으로 연번을 붙여주세요.'
                 )
                 gpt_reply = await nlp_service.get_followup_response(chat_id, filter_instruction)
                 await update.message.reply_text(gpt_reply)
